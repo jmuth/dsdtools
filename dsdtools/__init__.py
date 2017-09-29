@@ -16,6 +16,30 @@ import os
 import dsdtools
 
 
+class tempfile:
+    """ Context for temporary file
+
+    Will find a free temporary filename upon entering
+    and will try to delete the file on leaving
+
+    """
+
+    def __enter__(self):
+        import tempfile as tmp
+        self.handle, self.name = tmp.mkstemp(suffix='.wav')
+        return self.name
+
+    def __exit__(self, type, value, traceback):
+        try:
+            os.close(self.handle)
+            os.remove(self.name)
+        except OSError as e:
+            if e.errno == 2:
+                pass
+            else:
+                raise e
+
+
 class DB(object):
     """
     The dsdtools DB Object
@@ -298,7 +322,12 @@ class DB(object):
         test_track.audio = signal
         test_track.rate = 44100
 
-        user_results = user_function(test_track)
+        # writing test signal in temporary WAV file
+        with tempfile() as tmp_wav_file:
+            sf.write(tmp_wav_file, signal, test_track.rate)
+            test_track.path = tmp_wav_file
+
+            user_results = user_function(test_track)
 
         if isinstance(user_results, dict):
             for target, audio in list(user_results.items()):
